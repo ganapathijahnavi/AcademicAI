@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+venv/
+.venv/
+env/
+ENV/
+
+# Virtualenv
+/.venv
+/.env
+
+# Chroma DB (large / generated) — don't push unless intentional
+chroma_db/
+*.chromadb
+.chroma/
+
+# Node / React
+node_modules/
+build/
+dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local envs
+.env
+.env.local
+.env.*.local
+
+.env
+__pycache__/
+*.pyc
+node_modules/
