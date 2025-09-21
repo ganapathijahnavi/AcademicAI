@@ -149,3 +149,9 @@ def ask_endpoint(query: Query):
         logger.exception("Error in /ask endpoint")
         # Return textual error string so the frontend can show it (keeps axios from throwing)
         return JSONResponse(content={"answer": f"Error: {str(e)}"})
+
+# -------------- Start uvicorn when running directly --------------
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))  # Render sets $PORT
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
