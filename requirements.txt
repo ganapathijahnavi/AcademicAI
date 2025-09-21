@@ -4,6 +4,7 @@ langchain
 langchain-community
 langchain-huggingface
 langchain-google-genai
+langchain_openai
 langchain-chroma
 google-generativeai
 chromadb
