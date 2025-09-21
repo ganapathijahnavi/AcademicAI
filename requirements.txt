@@ -12,5 +12,6 @@ pypdf
 pydantic
 python-dotenv
 requests
-
+openai
+huggingface-hub
 
