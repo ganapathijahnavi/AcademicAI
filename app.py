@@ -1,3 +1,161 @@
+# # # app.py
+# # import os
+# # import re
+# # import logging
+# # from typing import Any
+
+# # from fastapi import FastAPI
+# # from fastapi.middleware.cors import CORSMiddleware
+# # from fastapi.responses import JSONResponse
+# # from pydantic import BaseModel
+
+# # # langchain provider-specific packages (use the versions you installed)
+# # from langchain_huggingface import HuggingFaceEmbeddings
+# # from langchain_chroma import Chroma
+# # from langchain_openai import ChatOpenAI
+# # from langchain.chains import RetrievalQA
+
+# # # -------------- logging --------------
+# # logging.basicConfig(level=logging.INFO)
+# # logger = logging.getLogger(__name__)
+
+# # # -------------- FastAPI setup --------------
+# # app = FastAPI(title="Subject QA Bot API")
+
+# # app.add_middleware(
+# #     CORSMiddleware,
+# #     allow_origins=["*"],  # in production, set your frontend URL instead of "*"
+# #     allow_methods=["*"],
+# #     allow_headers=["*"],
+# # )
+
+# # # -------------- Check OPENAI_API_KEY --------------
+# # OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# # if not OPENAI_API_KEY:
+# #     raise ValueError(
+# #         "Please set the OPENAI_API_KEY environment variable before starting the server."
+# #         " Example (PowerShell): $env:OPENAI_API_KEY='sk-...'\n"
+# #         "On Windows (CMD): setx OPENAI_API_KEY \"sk-...\"  (then restart your terminal)\n"
+# #         "On macOS/Linux: export OPENAI_API_KEY='sk-...'\n"
+# #     )
+
+# # # If a user accidentally copied smart/curly quotes or other non-ascii chars, fail early with a clear message:
+# # try:
+# #     OPENAI_API_KEY.encode("ascii")
+# # except UnicodeEncodeError:
+# #     raise ValueError(
+# #         "OPENAI_API_KEY contains non-ASCII characters (curly quotes or stray characters). "
+# #         "Make sure you set the key exactly as provided by OpenAI with plain ASCII characters."
+# #     )
+
+# # # -------------- Embeddings, Vector DB, LLM, QA chain --------------
+# # try:
+# #     embedding_function = HuggingFaceEmbeddings(
+# #         model_name="sentence-transformers/all-MiniLM-L6-v2"
+# #     )
+
+# #     vectordb = Chroma(
+# #         collection_name="my_collection",
+# #         embedding_function=embedding_function,
+# #         persist_directory="./chroma_db",
+# #     )
+
+# #     llm = ChatOpenAI(
+# #         model_name="gpt-4o-mini",
+# #         temperature=0,
+# #         openai_api_key=OPENAI_API_KEY,
+# #     )
+
+# #     qa = RetrievalQA.from_chain_type(
+# #         llm=llm,
+# #         retriever=vectordb.as_retriever(),
+# #         chain_type="stuff",
+# #     )
+# # except Exception as e:
+# #     logger.exception("Error initializing embeddings/vectorstore/LLM/QA chain")
+# #     # re-raise so the user sees startup error
+# #     raise
+
+# # # -------------- Request model --------------
+# # class Query(BaseModel):
+# #     question: str
+
+# # # -------------- Helpers --------------
+# # def coerce_result_to_text(res: Any) -> str:
+# #     """
+# #     Turn various langchain result shapes into a usable string.
+# #     """
+# #     if res is None:
+# #         return ""
+# #     if isinstance(res, str):
+# #         return res
+# #     if isinstance(res, dict):
+# #         # common keys used by chains
+# #         for key in ("answer", "result", "output_text", "text"):
+# #             v = res.get(key)
+# #             if isinstance(v, str):
+# #                 return v
+# #         # fallback: join stringified values
+# #         try:
+# #             return " ".join(str(v) for v in res.values())
+# #         except Exception:
+# #             return str(res)
+# #     if isinstance(res, (list, tuple)):
+# #         return "\n\n".join(coerce_result_to_text(x) for x in res)
+# #     return str(res)
+
+# # def collapse_blank_lines(s: str) -> str:
+# #     # replace runs of 3+ blank lines with exactly 2 newlines, and trim edges
+# #     s = re.sub(r'\n\s*\n\s*\n+', '\n\n', s)
+# #     return s.strip()
+
+# # # -------------- Endpoints --------------
+# # @app.get("/")
+# # def root():
+# #     return {"message": "FastAPI backend running. Use POST /ask to query."}
+
+
+# # @app.post("/ask")
+# # def ask_endpoint(query: Query):
+# #     """
+# #     Accepts JSON: { "question": "..." }
+# #     Returns JSON: { "answer": "..." }  (always a string)
+# #     """
+# #     try:
+# #         # Try common invocation patterns: prefer dict-style invoke, fallback to string invoke, then .run()
+# #         try:
+# #             result = qa.invoke({"query": query.question})
+# #         except TypeError:
+# #             try:
+# #                 result = qa.invoke(query.question)
+# #             except Exception:
+# #                 # final fallback
+# #                 result = qa.run(query.question)
+# #         except Exception:
+# #             # some other invoke error — try run
+# #             result = qa.run(query.question)
+
+# #         # coerce to text (so frontend won't receive an object)
+# #         result_text = coerce_result_to_text(result)
+
+# #         # collapse noisy blank lines and make sure we have UTF-8-safe string
+# #         result_text = collapse_blank_lines(result_text)
+# #         result_text = result_text.encode("utf-8", errors="replace").decode("utf-8")
+
+# #         return JSONResponse(content={"answer": result_text})
+
+# #     except Exception as e:
+# #         # Log full traceback server-side
+# #         logger.exception("Error in /ask endpoint")
+# #         # Return textual error string so the frontend can show it (keeps axios from throwing)
+# #         return JSONResponse(content={"answer": f"Error: {str(e)}"})
+
+# # # -------------- Start uvicorn when running directly --------------
+# # if __name__ == "__main__":
+# #     import uvicorn
+# #     port = int(os.environ.get("PORT", 8000))  # Render sets $PORT
+# #     uvicorn.run("app:app", host="0.0.0.0", port=port)
+
 # # app.py
 # import os
 # import re
@@ -9,7 +167,7 @@
 # from fastapi.responses import JSONResponse
 # from pydantic import BaseModel
 
-# # langchain provider-specific packages (use the versions you installed)
+# # langchain provider-specific packages
 # from langchain_huggingface import HuggingFaceEmbeddings
 # from langchain_chroma import Chroma
 # from langchain_openai import ChatOpenAI
@@ -24,7 +182,7 @@
 
 # app.add_middleware(
 #     CORSMiddleware,
-#     allow_origins=["*"],  # in production, set your frontend URL instead of "*"
+#     allow_origins=["*"],  # in production, replace "*" with your frontend domain
 #     allow_methods=["*"],
 #     allow_headers=["*"],
 # )
@@ -32,49 +190,48 @@
 # # -------------- Check OPENAI_API_KEY --------------
 # OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 # if not OPENAI_API_KEY:
-#     raise ValueError(
-#         "Please set the OPENAI_API_KEY environment variable before starting the server."
-#         " Example (PowerShell): $env:OPENAI_API_KEY='sk-...'\n"
-#         "On Windows (CMD): setx OPENAI_API_KEY \"sk-...\"  (then restart your terminal)\n"
-#         "On macOS/Linux: export OPENAI_API_KEY='sk-...'\n"
-#     )
+#     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-# # If a user accidentally copied smart/curly quotes or other non-ascii chars, fail early with a clear message:
 # try:
 #     OPENAI_API_KEY.encode("ascii")
 # except UnicodeEncodeError:
 #     raise ValueError(
-#         "OPENAI_API_KEY contains non-ASCII characters (curly quotes or stray characters). "
-#         "Make sure you set the key exactly as provided by OpenAI with plain ASCII characters."
+#         "OPENAI_API_KEY contains non-ASCII characters. "
+#         "Copy it exactly as given by OpenAI."
 #     )
 
-# # -------------- Embeddings, Vector DB, LLM, QA chain --------------
-# try:
-#     embedding_function = HuggingFaceEmbeddings(
-#         model_name="sentence-transformers/all-MiniLM-L6-v2"
-#     )
+# # -------------- Lazy initialization globals --------------
+# qa = None  # cache for QA chain
 
-#     vectordb = Chroma(
-#         collection_name="my_collection",
-#         embedding_function=embedding_function,
-#         persist_directory="./chroma_db",
-#     )
+# def get_qa():
+#     """Initialize embeddings/vector DB/LLM only once, on first request."""
+#     global qa
+#     if qa is None:
+#         logger.info("Initializing embeddings, Chroma, LLM, and QA chain...")
 
-#     llm = ChatOpenAI(
-#         model_name="gpt-4o-mini",
-#         temperature=0,
-#         openai_api_key=OPENAI_API_KEY,
-#     )
+#         embedding_function = HuggingFaceEmbeddings(
+#             model_name="sentence-transformers/all-MiniLM-L6-v2"
+#         )
 
-#     qa = RetrievalQA.from_chain_type(
-#         llm=llm,
-#         retriever=vectordb.as_retriever(),
-#         chain_type="stuff",
-#     )
-# except Exception as e:
-#     logger.exception("Error initializing embeddings/vectorstore/LLM/QA chain")
-#     # re-raise so the user sees startup error
-#     raise
+#         vectordb = Chroma(
+#             collection_name="my_collection",
+#             embedding_function=embedding_function,
+#             persist_directory="./chroma_db",
+#         )
+
+#         llm = ChatOpenAI(
+#             model_name="gpt-4o-mini",
+#             temperature=0,
+#             openai_api_key=OPENAI_API_KEY,
+#         )
+
+#         qa = RetrievalQA.from_chain_type(
+#             llm=llm,
+#             retriever=vectordb.as_retriever(),
+#             chain_type="stuff",
+#         )
+#         logger.info("QA chain initialized successfully.")
+#     return qa
 
 # # -------------- Request model --------------
 # class Query(BaseModel):
@@ -82,20 +239,16 @@
 
 # # -------------- Helpers --------------
 # def coerce_result_to_text(res: Any) -> str:
-#     """
-#     Turn various langchain result shapes into a usable string.
-#     """
+#     """Convert various langchain result shapes into plain string."""
 #     if res is None:
 #         return ""
 #     if isinstance(res, str):
 #         return res
 #     if isinstance(res, dict):
-#         # common keys used by chains
 #         for key in ("answer", "result", "output_text", "text"):
 #             v = res.get(key)
 #             if isinstance(v, str):
 #                 return v
-#         # fallback: join stringified values
 #         try:
 #             return " ".join(str(v) for v in res.values())
 #         except Exception:
@@ -105,7 +258,6 @@
 #     return str(res)
 
 # def collapse_blank_lines(s: str) -> str:
-#     # replace runs of 3+ blank lines with exactly 2 newlines, and trim edges
 #     s = re.sub(r'\n\s*\n\s*\n+', '\n\n', s)
 #     return s.strip()
 
@@ -114,40 +266,27 @@
 # def root():
 #     return {"message": "FastAPI backend running. Use POST /ask to query."}
 
-
 # @app.post("/ask")
 # def ask_endpoint(query: Query):
-#     """
-#     Accepts JSON: { "question": "..." }
-#     Returns JSON: { "answer": "..." }  (always a string)
-#     """
 #     try:
-#         # Try common invocation patterns: prefer dict-style invoke, fallback to string invoke, then .run()
+#         qa_instance = get_qa()
 #         try:
-#             result = qa.invoke({"query": query.question})
+#             result = qa_instance.invoke({"query": query.question})
 #         except TypeError:
 #             try:
-#                 result = qa.invoke(query.question)
+#                 result = qa_instance.invoke(query.question)
 #             except Exception:
-#                 # final fallback
-#                 result = qa.run(query.question)
+#                 result = qa_instance.run(query.question)
 #         except Exception:
-#             # some other invoke error — try run
-#             result = qa.run(query.question)
+#             result = qa_instance.run(query.question)
 
-#         # coerce to text (so frontend won't receive an object)
 #         result_text = coerce_result_to_text(result)
-
-#         # collapse noisy blank lines and make sure we have UTF-8-safe string
 #         result_text = collapse_blank_lines(result_text)
 #         result_text = result_text.encode("utf-8", errors="replace").decode("utf-8")
 
 #         return JSONResponse(content={"answer": result_text})
-
 #     except Exception as e:
-#         # Log full traceback server-side
 #         logger.exception("Error in /ask endpoint")
-#         # Return textual error string so the frontend can show it (keeps axios from throwing)
 #         return JSONResponse(content={"answer": f"Error: {str(e)}"})
 
 # # -------------- Start uvicorn when running directly --------------
@@ -156,22 +295,19 @@
 #     port = int(os.environ.get("PORT", 8000))  # Render sets $PORT
 #     uvicorn.run("app:app", host="0.0.0.0", port=port)
 
+
+
 # app.py
 import os
 import re
 import logging
 from typing import Any
+from threading import Lock
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-
-# langchain provider-specific packages
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
-from langchain_openai import ChatOpenAI
-from langchain.chains import RetrievalQA
 
 # -------------- logging --------------
 logging.basicConfig(level=logging.INFO)
@@ -182,7 +318,7 @@ app = FastAPI(title="Subject QA Bot API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # in production, replace "*" with your frontend domain
+    allow_origins=["*"],  # in production, set a specific origin
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -196,50 +332,97 @@ try:
     OPENAI_API_KEY.encode("ascii")
 except UnicodeEncodeError:
     raise ValueError(
-        "OPENAI_API_KEY contains non-ASCII characters. "
-        "Copy it exactly as given by OpenAI."
+        "OPENAI_API_KEY contains non-ASCII characters. Copy it exactly as given by OpenAI."
     )
 
 # -------------- Lazy initialization globals --------------
-qa = None  # cache for QA chain
+qa = None
+_init_lock = Lock()
+
+# make a cache dir for huggingface / sentence-transformers
+HF_CACHE_DIR = os.environ.get("HF_CACHE_DIR", "./hf_cache")
+os.makedirs(HF_CACHE_DIR, exist_ok=True)
+
 
 def get_qa():
-    """Initialize embeddings/vector DB/LLM only once, on first request."""
+    """
+    Initialize embeddings/vectorstore/LLM/QA only once, safely (thread-locked).
+    """
     global qa
-    if qa is None:
+    if qa is not None:
+        return qa
+
+    with _init_lock:
+        # double-check after acquiring lock
+        if qa is not None:
+            return qa
+
+        # ensure huggingface/transformers cache env vars point to a real folder
+        os.environ.setdefault("TRANSFORMERS_CACHE", HF_CACHE_DIR)
+        os.environ.setdefault("HF_HOME", HF_CACHE_DIR)
+        os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", HF_CACHE_DIR)
+
         logger.info("Initializing embeddings, Chroma, LLM, and QA chain...")
 
-        embedding_function = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        try:
+            # do provider-specific imports here so they don't run at module import time
+            from langchain_huggingface import HuggingFaceEmbeddings
+            from langchain_chroma import Chroma
+            from langchain_openai import ChatOpenAI
+            from langchain.chains import RetrievalQA
+        except Exception:
+            logger.exception("Failed to import LangChain provider libraries.")
+            raise
 
-        vectordb = Chroma(
-            collection_name="my_collection",
-            embedding_function=embedding_function,
-            persist_directory="./chroma_db",
-        )
+        try:
+            # Try to pass cache/device hints if supported; wrapper may ignore unknown kwargs.
+            try:
+                embedding_function = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_kwargs={"device": "cpu", "cache_folder": HF_CACHE_DIR},
+                )
+            except TypeError:
+                # fallback if wrapper doesn't accept model_kwargs
+                embedding_function = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
 
-        llm = ChatOpenAI(
-            model_name="gpt-4o-mini",
-            temperature=0,
-            openai_api_key=OPENAI_API_KEY,
-        )
+            vectordb = Chroma(
+                collection_name="my_collection",
+                embedding_function=embedding_function,
+                persist_directory="./chroma_db",
+            )
 
-        qa = RetrievalQA.from_chain_type(
-            llm=llm,
-            retriever=vectordb.as_retriever(),
-            chain_type="stuff",
-        )
-        logger.info("QA chain initialized successfully.")
-    return qa
+            llm = ChatOpenAI(
+                model_name="gpt-4o-mini",
+                temperature=0,
+                openai_api_key=OPENAI_API_KEY,
+            )
+
+            qa_instance = RetrievalQA.from_chain_type(
+                llm=llm,
+                retriever=vectordb.as_retriever(),
+                chain_type="stuff",
+            )
+
+            qa = qa_instance
+            logger.info("QA chain initialized successfully.")
+            return qa
+
+        except Exception:
+            logger.exception("Failed during QA chain initialization.")
+            # make sure qa remains None on failure so subsequent calls can retry
+            qa = None
+            raise
+
 
 # -------------- Request model --------------
 class Query(BaseModel):
     question: str
 
+
 # -------------- Helpers --------------
 def coerce_result_to_text(res: Any) -> str:
-    """Convert various langchain result shapes into plain string."""
     if res is None:
         return ""
     if isinstance(res, str):
@@ -257,19 +440,29 @@ def coerce_result_to_text(res: Any) -> str:
         return "\n\n".join(coerce_result_to_text(x) for x in res)
     return str(res)
 
+
 def collapse_blank_lines(s: str) -> str:
-    s = re.sub(r'\n\s*\n\s*\n+', '\n\n', s)
+    s = re.sub(r"\n\s*\n\s*\n+", "\n\n", s)
     return s.strip()
+
 
 # -------------- Endpoints --------------
 @app.get("/")
 def root():
     return {"message": "FastAPI backend running. Use POST /ask to query."}
 
+
+@app.options("/ask")
+def ask_options():
+    # allow preflight to succeed quickly
+    return JSONResponse(content={"ok": True})
+
+
 @app.post("/ask")
 def ask_endpoint(query: Query):
     try:
         qa_instance = get_qa()
+        # Try common invocation patterns
         try:
             result = qa_instance.invoke({"query": query.question})
         except TypeError:
@@ -286,12 +479,16 @@ def ask_endpoint(query: Query):
 
         return JSONResponse(content={"answer": result_text})
     except Exception as e:
+        # log full traceback server-side
         logger.exception("Error in /ask endpoint")
+        # return a friendly error message (keeps axios from throwing)
         return JSONResponse(content={"answer": f"Error: {str(e)}"})
+
 
 # -------------- Start uvicorn when running directly --------------
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))  # Render sets $PORT
+
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port)
 
