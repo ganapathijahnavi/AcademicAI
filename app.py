@@ -297,198 +297,327 @@
 
 
 
-# app.py
-import os
-import re
-import logging
-from typing import Any
-from threading import Lock
+import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { v4 as uuidv4 } from "uuid";
+import "./App.css";
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+function App() {
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [question, setQuestion] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [replyTo, setReplyTo] = useState(null); // ✅ reply preview state
+  const chatEndRef = useRef(null);
 
-# -------------- logging --------------
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+  const themeStyles = {
+    background: darkMode ? "#1e1e1e" : "#fff",
+    color: darkMode ? "#f5f5f5" : "#000",
+  };
 
-# -------------- FastAPI setup --------------
-app = FastAPI(title="Subject QA Bot API")
+  const chatBubbleStyle = {
+    background: darkMode ? "#25D366" : "#4CAF50",
+    color: "#fff",
+    padding: "0.75rem 1rem",
+    borderRadius: "18px",
+    position: "relative",
+    alignSelf: "flex-end",
+    maxWidth: "70%",
+    marginBottom: "0.5rem",
+    wordBreak: "break-word",
+  };
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # in production, set a specific origin
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
 
-# -------------- Check OPENAI_API_KEY --------------
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+  const handleAsk = async () => {
+    if (!question) return;
 
-try:
-    OPENAI_API_KEY.encode("ascii")
-except UnicodeEncodeError:
-    raise ValueError(
-        "OPENAI_API_KEY contains non-ASCII characters. Copy it exactly as given by OpenAI."
-    )
+    let sessionId = activeSessionId;
+    if (!sessionId) {
+      const newSessionId = uuidv4();
+      const newSession = {
+        id: newSessionId,
+        title:
+          question.length > 30 ? question.slice(0, 30) + "..." : question,
+        messages: [],
+      };
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSessionId(newSessionId);
+      sessionId = newSessionId;
+    }
 
-# -------------- Lazy initialization globals --------------
-qa = None
-_init_lock = Lock()
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        "https://ganapati-jahnavi-academicai-backend.hf.space/ask",
+        { question }
+      );
+      const answer = response.data.answer;
 
-# make a cache dir for huggingface / sentence-transformers
-HF_CACHE_DIR = os.environ.get("HF_CACHE_DIR", "./hf_cache")
-os.makedirs(HF_CACHE_DIR, exist_ok=True)
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  { question, answer, replyTo }, // ✅ store reply link
+                ],
+              }
+            : session
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    question,
+                    answer: "Error fetching answer from backend.",
+                    replyTo,
+                  },
+                ],
+              }
+            : session
+        )
+      );
+    }
+    setQuestion("");
+    setReplyTo(null); // clear reply after asking
+    setLoading(false);
+  };
 
+  const CopyButton = ({ text }) => {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = () => {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+    return (
+      <button className="copy-btn" onClick={handleCopy}>
+        {copied ? "Copied!" : "Copy"}
+      </button>
+    );
+  };
 
-def get_qa():
-    """
-    Initialize embeddings/vectorstore/LLM/QA only once, safely (thread-locked).
-    """
-    global qa
-    if qa is not None:
-        return qa
+  const ActionButtons = ({ answer, question }) => {
+    const [copied, setCopied] = useState(false);
 
-    with _init_lock:
-        # double-check after acquiring lock
-        if qa is not None:
-            return qa
+    const handleCopyAll = () => {
+      navigator.clipboard.writeText(answer);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
 
-        # ensure huggingface/transformers cache env vars point to a real folder
-        os.environ.setdefault("TRANSFORMERS_CACHE", HF_CACHE_DIR)
-        os.environ.setdefault("HF_HOME", HF_CACHE_DIR)
-        os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", HF_CACHE_DIR)
+    return (
+      <div className="bot-actions">
+        <button onClick={handleCopyAll}>{copied ? "Copied!" : "Copy"}</button>
+        <button onClick={() => setReplyTo({ question, answer })}>Reply</button>
+      </div>
+    );
+  };
 
-        logger.info("Initializing embeddings, Chroma, LLM, and QA chain...")
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeSession?.messages, loading]);
 
-        try:
-            # do provider-specific imports here so they don't run at module import time
-            from langchain_huggingface import HuggingFaceEmbeddings
-            from langchain_chroma import Chroma
-            from langchain_openai import ChatOpenAI
-            from langchain.chains import RetrievalQA
-        except Exception:
-            logger.exception("Failed to import LangChain provider libraries.")
-            raise
+  const createNewSession = () => {
+    const newSessionId = uuidv4();
+    const newSession = { id: newSessionId, title: "New Chat", messages: [] };
+    setSessions((prev) => [newSession, ...prev]);
+    setActiveSessionId(newSessionId);
+  };
 
-        try:
-            # Try to pass cache/device hints if supported; wrapper may ignore unknown kwargs.
-            try:
-                embedding_function = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
-                    model_kwargs={"device": "cpu", "cache_folder": HF_CACHE_DIR},
-                )
-            except TypeError:
-                # fallback if wrapper doesn't accept model_kwargs
-                embedding_function = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2"
-                )
+  useEffect(() => {
+    if (!activeSession || activeSession.messages.length === 0) return;
+    const firstMessage = activeSession.messages[0].question;
+    const newTitle =
+      firstMessage.length > 30
+        ? firstMessage.slice(0, 30) + "..."
+        : firstMessage;
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === activeSession.id && s.title === "New Chat"
+          ? { ...s, title: newTitle }
+          : s
+      )
+    );
+  }, [activeSession, activeSession?.messages]);
 
-            vectordb = Chroma(
-                collection_name="my_collection",
-                embedding_function=embedding_function,
-                persist_directory="./chroma_db",
+  return (
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        fontFamily: "Arial, sans-serif",
+        ...themeStyles,
+      }}
+    >
+      {/* Sidebar */}
+      <div className="sidebar">
+        <img
+          src="/ACADEMIC.png"
+          alt="GPT Logo"
+          style={{ width: "120px", marginBottom: "1rem" }}
+        />
+        <div className="description">
+          <p
+            style={{
+              fontSize: "0.9rem",
+              color: darkMode ? "#f5f5f5" : "#333",
+              lineHeight: "1.4rem",
+            }}
+          >
+            Your AI Study Buddy — Get summaries, simple explanations, and
+            topic-focused answers. Learn smarter, faster, and easier with our
+            education-powered "AcademicAI".
+          </p>
+        </div>
+        <button className="new-chat-btn" onClick={createNewSession}>
+          + New Chat
+        </button>
+        <input
+          type="text"
+          placeholder="Search chats..."
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-bar"
+        />
+        <div className="history-header">
+          <h3>History</h3>
+          <button
+            className="mode-toggle"
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            {darkMode ? "☀️" : "🌙"}
+          </button>
+        </div>
+        <div className="history-list">
+          {sessions
+            .filter((session) =>
+              session.title.toLowerCase().includes(searchTerm.toLowerCase())
             )
+            .map((session) => (
+              <div
+                key={session.id}
+                className={`session-item ${
+                  session.id === activeSessionId ? "active" : ""
+                }`}
+                onClick={() => setActiveSessionId(session.id)}
+              >
+                {session.title} ({session.messages.length} messages)
+              </div>
+            ))}
+        </div>
+      </div>
 
-            llm = ChatOpenAI(
-                model_name="gpt-4o-mini",
-                temperature=0,
-                openai_api_key=OPENAI_API_KEY,
-            )
+      {/* Chat Window */}
+      <div className="chat-window">
+        <div className="chat-messages">
+          {activeSession?.messages.map((chat, idx) => (
+            <div key={idx} className="chat-block">
+              {/* User Message */}
+              <div style={chatBubbleStyle}>
+                <strong>You:</strong> {chat.question}
+              </div>
 
-            qa_instance = RetrievalQA.from_chain_type(
-                llm=llm,
-                retriever=vectordb.as_retriever(),
-                chain_type="stuff",
-            )
+              {/* Bot Message */}
+              <div className="bot-message">
+                <img src="/agent.png" alt="GPT" className="bot-avatar" />
+                <div className="bot-content">
+                  <ReactMarkdown
+                    components={{
+                      p({ children }) {
+                        return (
+                          <p style={{ margin: "0.5rem 0", lineHeight: "1.5" }}>
+                            {children}
+                          </p>
+                        );
+                      },
+                      code({ inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const codeText = String(children).replace(/\n$/, "");
+                        return !inline ? (
+                          <div className="code-block">
+                            <CopyButton text={codeText} />
+                            <SyntaxHighlighter
+                              style={oneDark}
+                              language={match ? match[1] : "text"}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {codeText}
+                            </SyntaxHighlighter>
+                          </div>
+                        ) : (
+                          <code className="inline-code" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {chat.answer}
+                  </ReactMarkdown>
 
-            qa = qa_instance
-            logger.info("QA chain initialized successfully.")
-            return qa
+                  {/* Action buttons for bot message */}
+                  <ActionButtons answer={chat.answer} question={chat.question} />
+                </div>
+              </div>
+            </div>
+          ))}
+          {loading && <p>Loading...</p>}
+          <div ref={chatEndRef} />
+        </div>
 
-        except Exception:
-            logger.exception("Failed during QA chain initialization.")
-            # make sure qa remains None on failure so subsequent calls can retry
-            qa = None
-            raise
+        {/* Reply Preview above Input */}
+        {replyTo && (
+          <div className="reply-preview">
+            <strong>Replying to:</strong>{" "}
+            {replyTo.answer.length > 80
+              ? replyTo.answer.slice(0, 80) + "..."
+              : replyTo.answer}
+            <button className="close-reply" onClick={() => setReplyTo(null)}>
+              ✖
+            </button>
+          </div>
+        )}
 
+        {/* Input Bar */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: "1rem",
+            borderTop: darkMode ? "1px solid #333" : "1px solid #ddd",
+            background: darkMode ? "#1b1b1b" : "#f9f9f9",
+          }}
+        >
+          <div className="input-bar">
+            <input
+              type="text"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Type your question..."
+              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+            />
+            <button onClick={handleAsk}>➜</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-# -------------- Request model --------------
-class Query(BaseModel):
-    question: str
-
-
-# -------------- Helpers --------------
-def coerce_result_to_text(res: Any) -> str:
-    if res is None:
-        return ""
-    if isinstance(res, str):
-        return res
-    if isinstance(res, dict):
-        for key in ("answer", "result", "output_text", "text"):
-            v = res.get(key)
-            if isinstance(v, str):
-                return v
-        try:
-            return " ".join(str(v) for v in res.values())
-        except Exception:
-            return str(res)
-    if isinstance(res, (list, tuple)):
-        return "\n\n".join(coerce_result_to_text(x) for x in res)
-    return str(res)
-
-
-def collapse_blank_lines(s: str) -> str:
-    s = re.sub(r"\n\s*\n\s*\n+", "\n\n", s)
-    return s.strip()
-
-
-# -------------- Endpoints --------------
-@app.get("/")
-def root():
-    return {"message": "FastAPI backend running. Use POST /ask to query."}
-
-
-@app.options("/ask")
-def ask_options():
-    # allow preflight to succeed quickly
-    return JSONResponse(content={"ok": True})
-
-
-@app.post("/ask")
-def ask_endpoint(query: Query):
-    try:
-        qa_instance = get_qa()
-        # Try common invocation patterns
-        try:
-            result = qa_instance.invoke({"query": query.question})
-        except TypeError:
-            try:
-                result = qa_instance.invoke(query.question)
-            except Exception:
-                result = qa_instance.run(query.question)
-        except Exception:
-            result = qa_instance.run(query.question)
-
-        result_text = coerce_result_to_text(result)
-        result_text = collapse_blank_lines(result_text)
-        result_text = result_text.encode("utf-8", errors="replace").decode("utf-8")
-
-        return JSONResponse(content={"answer": result_text})
-    except Exception as e:
-        # log full traceback server-side
-        logger.exception("Error in /ask endpoint")
-        # return a friendly error message (keeps axios from throwing)
-        return JSONResponse(content={"answer": f"Error: {str(e)}"})
-
-
-# -------------- Start uvicorn when running directly --------------
-if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
+export default App;
 
