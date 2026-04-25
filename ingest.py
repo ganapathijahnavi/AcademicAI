@@ -34,7 +34,6 @@ chunks = text_splitter.split_documents(docs)
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Store in Chroma
-vectordb = Chroma.from_documents(chunks, embeddings, persist_directory="db")
-vectordb.persist()
+vectordb = Chroma.from_documents(chunks, embeddings, persist_directory="chroma_db")
 
-print("✅ Ingestion complete! All subject PDFs embedded and stored in db/")
+print("✅ Ingestion complete! All subject PDFs embedded and stored in chroma_db/ (auto-persisted)")
