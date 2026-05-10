@@ -3,10 +3,9 @@ import os
 import re
 import logging
 from typing import Any
-<<<<<<< HEAD
-=======
+
 from threading import Lock
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,8 +18,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 import openai
 
-=======
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
 # -------------- logging --------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,16 +28,15 @@ app = FastAPI(title="Subject QA Bot API")
 
 app.add_middleware(
     CORSMiddleware,
-<<<<<<< HEAD
+
     allow_origins=["*"],  # in production, set your frontend URL instead of "*"
-=======
+
     allow_origins=["*"],  # in production, set a specific origin
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
 
 
 # -------------- Embeddings, Vector DB, LLM (Transformers) --------------
@@ -67,7 +64,7 @@ try:
 except Exception as e:
     logger.exception("Error initializing embeddings/vectorstore/LLM/QA chain")
     raise
-=======
+
 # -------------- Check OPENAI_API_KEY --------------
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
@@ -185,19 +182,18 @@ def get_qa():
             qa = None
             raise
 
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 
 # -------------- Request model --------------
 class Query(BaseModel):
     question: str
 
-<<<<<<< HEAD
+
 # -------------- Helpers --------------
 def coerce_result_to_text(res: Any) -> str:
     """
     Turn various langchain result shapes into a usable string.
     """
-=======
+
 
 # -------------- Helpers --------------
 def coerce_result_to_text(res: Any) -> str:
@@ -207,18 +203,16 @@ def coerce_result_to_text(res: Any) -> str:
     if isinstance(res, str):
         return res
     if isinstance(res, dict):
-<<<<<<< HEAD
+
         # common keys used by chains
-=======
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
         for key in ("answer", "result", "output_text", "text"):
             v = res.get(key)
             if isinstance(v, str):
                 return v
-<<<<<<< HEAD
+
         # fallback: join stringified values
-=======
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
         try:
             return " ".join(str(v) for v in res.values())
         except Exception:
@@ -227,27 +221,26 @@ def coerce_result_to_text(res: Any) -> str:
         return "\n\n".join(coerce_result_to_text(x) for x in res)
     return str(res)
 
-<<<<<<< HEAD
+
 def collapse_blank_lines(s: str) -> str:
     # replace runs of 3+ blank lines with exactly 2 newlines, and trim edges
     s = re.sub(r'\n\s*\n\s*\n+', '\n\n', s)
     return s.strip()
 
-=======
+
 
 def collapse_blank_lines(s: str) -> str:
     s = re.sub(r"\n\s*\n\s*\n+", "\n\n", s)
     return s.strip()
 
 
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 # -------------- Endpoints --------------
 @app.get("/")
 def root():
     return {"message": "FastAPI backend running. Use POST /ask to query."}
 
 
-<<<<<<< HEAD
+
 @app.post("/ask")
 def ask_endpoint(query: Query):
     """
@@ -346,7 +339,7 @@ def ask_endpoint(query: Query):
     except Exception as e:
         logger.exception("Error in /ask endpoint")
         return JSONResponse(content={"answer": f"Error: {str(e)}"})
-=======
+
 @app.options("/ask")
 def ask_options():
     # allow preflight to succeed quickly
@@ -386,4 +379,4 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run("app:app", host="0.0.0.0", port=port)
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
+
