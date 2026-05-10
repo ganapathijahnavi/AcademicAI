@@ -8,9 +8,18 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.12.2",
+<<<<<<< HEAD
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-scripts": "5.0.1",
+=======
+    "highlight.js": "^11.11.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-scripts": "5.0.1",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
     "web-vitals": "^2.1.4"
   },
   "scripts": {

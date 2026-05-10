@@ -379,12 +379,20 @@
 
 // export default App;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { v4 as uuidv4 } from "uuid";
+<<<<<<< HEAD
+=======
+import "./App.css";
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 
 function App() {
   const [sessions, setSessions] = useState([]);
@@ -393,11 +401,16 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+<<<<<<< HEAD
 
+=======
+  const [replyTo, setReplyTo] = useState(null); // ✅ reply preview state
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
   const chatEndRef = useRef(null);
 
   const themeStyles = {
     background: darkMode ? "#1e1e1e" : "#fff",
+<<<<<<< HEAD
     color: darkMode ? "#f5f5f5" : "#000"
   };
 
@@ -416,6 +429,22 @@ function App() {
     display: "flex",
     alignItems: "flex-start"
   });
+=======
+    color: darkMode ? "#f5f5f5" : "#000",
+  };
+
+  const chatBubbleStyle = {
+    background: darkMode ? "#25D366" : "#4CAF50",
+    color: "#fff",
+    padding: "0.75rem 1rem",
+    borderRadius: "18px",
+    position: "relative",
+    alignSelf: "flex-end",
+    maxWidth: "70%",
+    marginBottom: "0.5rem",
+    wordBreak: "break-word",
+  };
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
@@ -427,8 +456,14 @@ function App() {
       const newSessionId = uuidv4();
       const newSession = {
         id: newSessionId,
+<<<<<<< HEAD
         title: question.length > 30 ? question.slice(0, 30) + "..." : question,
         messages: []
+=======
+        title:
+          question.length > 30 ? question.slice(0, 30) + "..." : question,
+        messages: [],
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
       };
       setSessions((prev) => [newSession, ...prev]);
       setActiveSessionId(newSessionId);
@@ -436,15 +471,33 @@ function App() {
     }
 
     setLoading(true);
+<<<<<<< HEAD
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/ask", { question });
+=======
+    try {
+      const response = await axios.post(
+        "https://ganapati-jahnavi-academicai-backend.hf.space/ask",
+        { question }
+      );
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
       const answer = response.data.answer;
 
       setSessions((prev) =>
         prev.map((session) =>
           session.id === sessionId
+<<<<<<< HEAD
             ? { ...session, messages: [...session.messages, { question, answer }] }
+=======
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  { question, answer, replyTo }, // ✅ store reply link
+                ],
+              }
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
             : session
         )
       );
@@ -453,24 +506,47 @@ function App() {
       setSessions((prev) =>
         prev.map((session) =>
           session.id === sessionId
+<<<<<<< HEAD
             ? { ...session, messages: [...session.messages, { question, answer: "Error fetching answer from backend." }] }
+=======
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    question,
+                    answer: "Error fetching answer from backend.",
+                    replyTo,
+                  },
+                ],
+              }
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
             : session
         )
       );
     }
+<<<<<<< HEAD
 
     setQuestion("");
+=======
+    setQuestion("");
+    setReplyTo(null); // clear reply after asking
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
     setLoading(false);
   };
 
   const CopyButton = ({ text }) => {
     const [copied, setCopied] = useState(false);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
     const handleCopy = () => {
       navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     };
+<<<<<<< HEAD
 
     return (
       <button
@@ -488,11 +564,35 @@ function App() {
           fontSize: "12px"
         }}
       >
+=======
+    return (
+      <button className="copy-btn" onClick={handleCopy}>
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
         {copied ? "Copied!" : "Copy"}
       </button>
     );
   };
 
+<<<<<<< HEAD
+=======
+  const ActionButtons = ({ answer, question }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyAll = () => {
+      navigator.clipboard.writeText(answer);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+      <div className="bot-actions">
+        <button onClick={handleCopyAll}>{copied ? "Copied!" : "Copy"}</button>
+        <button onClick={() => setReplyTo({ question, answer })}>Reply</button>
+      </div>
+    );
+  };
+
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeSession?.messages, loading]);
@@ -506,10 +606,18 @@ function App() {
 
   useEffect(() => {
     if (!activeSession || activeSession.messages.length === 0) return;
+<<<<<<< HEAD
 
     const firstMessage = activeSession.messages[0].question;
     const newTitle = firstMessage.length > 30 ? firstMessage.slice(0, 30) + "..." : firstMessage;
 
+=======
+    const firstMessage = activeSession.messages[0].question;
+    const newTitle =
+      firstMessage.length > 30
+        ? firstMessage.slice(0, 30) + "..."
+        : firstMessage;
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
     setSessions((prev) =>
       prev.map((s) =>
         s.id === activeSession.id && s.title === "New Chat"
@@ -520,6 +628,7 @@ function App() {
   }, [activeSession, activeSession?.messages]);
 
   return (
+<<<<<<< HEAD
     <div style={{ display: "flex", height: "100vh", fontFamily: "Arial, sans-serif", ...themeStyles }}>
       {/* Sidebar */}
       <div style={{ width: "25%", borderRight: "1px solid #ddd", padding: "1rem", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -548,10 +657,44 @@ function App() {
           + New Chat
         </button>
         {/* Search */}
+=======
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        fontFamily: "Arial, sans-serif",
+        ...themeStyles,
+      }}
+    >
+      {/* Sidebar */}
+      <div className="sidebar">
+        <img
+          src="/ACADEMIC.png"
+          alt="GPT Logo"
+          style={{ width: "120px", marginBottom: "1rem" }}
+        />
+        <div className="description">
+          <p
+            style={{
+              fontSize: "0.9rem",
+              color: darkMode ? "#f5f5f5" : "#333",
+              lineHeight: "1.4rem",
+            }}
+          >
+            Your AI Study Buddy — Get summaries, simple explanations, and
+            topic-focused answers. Learn smarter, faster, and easier with our
+            education-powered "AcademicAI".
+          </p>
+        </div>
+        <button className="new-chat-btn" onClick={createNewSession}>
+          + New Chat
+        </button>
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
         <input
           type="text"
           placeholder="Search chats..."
           onChange={(e) => setSearchTerm(e.target.value)}
+<<<<<<< HEAD
           style={{
             marginBottom: "1rem",
             padding: "0.5rem",
@@ -574,10 +717,20 @@ function App() {
               cursor: "pointer",
               fontSize: "0.8rem"
             }}
+=======
+          className="search-bar"
+        />
+        <div className="history-header">
+          <h3>History</h3>
+          <button
+            className="mode-toggle"
+            onClick={() => setDarkMode(!darkMode)}
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
           >
             {darkMode ? "☀️" : "🌙"}
           </button>
         </div>
+<<<<<<< HEAD
         {sessions
           .filter((session) => session.title.toLowerCase().includes(searchTerm.toLowerCase()))
           .map((session) => (
@@ -636,6 +789,78 @@ function App() {
                       }}
                     />
                   </div>
+=======
+        <div className="history-list">
+          {sessions
+            .filter((session) =>
+              session.title.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .map((session) => (
+              <div
+                key={session.id}
+                className={`session-item ${
+                  session.id === activeSessionId ? "active" : ""
+                }`}
+                onClick={() => setActiveSessionId(session.id)}
+              >
+                {session.title} ({session.messages.length} messages)
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Chat Window */}
+      <div className="chat-window">
+        <div className="chat-messages">
+          {activeSession?.messages.map((chat, idx) => (
+            <div key={idx} className="chat-block">
+              {/* User Message */}
+              <div style={chatBubbleStyle}>
+                <strong>You:</strong> {chat.question}
+              </div>
+
+              {/* Bot Message */}
+              <div className="bot-message">
+                <img src="/agent.png" alt="GPT" className="bot-avatar" />
+                <div className="bot-content">
+                  <ReactMarkdown
+                    components={{
+                      p({ children }) {
+                        return (
+                          <p style={{ margin: "0.5rem 0", lineHeight: "1.5" }}>
+                            {children}
+                          </p>
+                        );
+                      },
+                      code({ inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const codeText = String(children).replace(/\n$/, "");
+                        return !inline ? (
+                          <div className="code-block">
+                            <CopyButton text={codeText} />
+                            <SyntaxHighlighter
+                              style={oneDark}
+                              language={match ? match[1] : "text"}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {codeText}
+                            </SyntaxHighlighter>
+                          </div>
+                        ) : (
+                          <code className="inline-code" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {chat.answer}
+                  </ReactMarkdown>
+
+                  {/* Action buttons for bot message */}
+                  <ActionButtons answer={chat.answer} question={chat.question} />
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
                 </div>
               </div>
             </div>
@@ -644,7 +869,24 @@ function App() {
           <div ref={chatEndRef} />
         </div>
 
+<<<<<<< HEAD
         {/* Input Bar styled like ChatGPT */}
+=======
+        {/* Reply Preview above Input */}
+        {replyTo && (
+          <div className="reply-preview">
+            <strong>Replying to:</strong>{" "}
+            {replyTo.answer.length > 80
+              ? replyTo.answer.slice(0, 80) + "..."
+              : replyTo.answer}
+            <button className="close-reply" onClick={() => setReplyTo(null)}>
+              ✖
+            </button>
+          </div>
+        )}
+
+        {/* Input Bar */}
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
         <div
           style={{
             display: "flex",
@@ -654,6 +896,7 @@ function App() {
             background: darkMode ? "#1b1b1b" : "#f9f9f9",
           }}
         >
+<<<<<<< HEAD
           <div
             style={{
               display: "flex",
@@ -669,11 +912,15 @@ function App() {
               alignItems: "center",
             }}
           >
+=======
+          <div className="input-bar">
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
             <input
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Type your question..."
+<<<<<<< HEAD
               style={{
                 flex: 1,
                 border: "none",
@@ -703,6 +950,11 @@ function App() {
             >
               ➜
             </button>
+=======
+              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+            />
+            <button onClick={handleAsk}>➜</button>
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
           </div>
         </div>
       </div>

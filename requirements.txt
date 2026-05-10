@@ -1,9 +1,28 @@
+<<<<<<< HEAD
+=======
+fastapi
+uvicorn[standard]
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 langchain
 langchain-community
 langchain-huggingface
 langchain-google-genai
+<<<<<<< HEAD
+=======
+langchain_openai
+langchain-chroma
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
 google-generativeai
 chromadb
 sentence-transformers
 pypdf
+<<<<<<< HEAD
 python-dotenv
+=======
+pydantic
+python-dotenv
+requests
+openai
+huggingface-hub
+
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b

@@ -40,4 +40,9 @@ Thumbs.db
 
 .env
 __pycache__/
+<<<<<<< HEAD
 *.pyc
+=======
+*.pyc
+node_modules/
+>>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
