@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-<<<<<<< HEAD
 # langchain provider-specific packages (use the versions you installed)
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -197,7 +196,6 @@ def coerce_result_to_text(res: Any) -> str:
 
 # -------------- Helpers --------------
 def coerce_result_to_text(res: Any) -> str:
->>>>>>> 0e5c0db416bfc4f7a9669cbb80e230707f4fa23b
     if res is None:
         return ""
     if isinstance(res, str):
