@@ -1,22 +1,17 @@
-# app.py
 import os
 import re
 import logging
 from typing import Any
-
 from threading import Lock
-
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-# langchain provider-specific packages (use the versions you installed)
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 import openai
-
 
 # -------------- logging --------------
 logging.basicConfig(level=logging.INFO)
@@ -27,20 +22,13 @@ app = FastAPI(title="Subject QA Bot API")
 
 app.add_middleware(
     CORSMiddleware,
-
     allow_origins=["*"],  # in production, set your frontend URL instead of "*"
-
-    allow_origins=["*"],  # in production, set a specific origin
-
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-
 # -------------- Embeddings, Vector DB, LLM (Transformers) --------------
 try:
-
     embedding_function = HuggingFaceEmbeddings(
         model_name="BAAI/bge-base-en-v1.5"
     )
@@ -83,7 +71,6 @@ _init_lock = Lock()
 # make a cache dir for huggingface / sentence-transformers
 HF_CACHE_DIR = os.environ.get("HF_CACHE_DIR", "./hf_cache")
 os.makedirs(HF_CACHE_DIR, exist_ok=True)
-
 
 def get_qa():
     """
@@ -181,18 +168,9 @@ def get_qa():
             qa = None
             raise
 
-
 # -------------- Request model --------------
 class Query(BaseModel):
     question: str
-
-
-# -------------- Helpers --------------
-def coerce_result_to_text(res: Any) -> str:
-    """
-    Turn various langchain result shapes into a usable string.
-    """
-
 
 # -------------- Helpers --------------
 def coerce_result_to_text(res: Any) -> str:
@@ -201,16 +179,10 @@ def coerce_result_to_text(res: Any) -> str:
     if isinstance(res, str):
         return res
     if isinstance(res, dict):
-
-        # common keys used by chains
-
         for key in ("answer", "result", "output_text", "text"):
             v = res.get(key)
             if isinstance(v, str):
                 return v
-
-        # fallback: join stringified values
-
         try:
             return " ".join(str(v) for v in res.values())
         except Exception:
@@ -219,25 +191,14 @@ def coerce_result_to_text(res: Any) -> str:
         return "\n\n".join(coerce_result_to_text(x) for x in res)
     return str(res)
 
-
-def collapse_blank_lines(s: str) -> str:
-    # replace runs of 3+ blank lines with exactly 2 newlines, and trim edges
-    s = re.sub(r'\n\s*\n\s*\n+', '\n\n', s)
-    return s.strip()
-
-
-
 def collapse_blank_lines(s: str) -> str:
     s = re.sub(r"\n\s*\n\s*\n+", "\n\n", s)
     return s.strip()
-
 
 # -------------- Endpoints --------------
 @app.get("/")
 def root():
     return {"message": "FastAPI backend running. Use POST /ask to query."}
-
-
 
 @app.post("/ask")
 def ask_endpoint(query: Query):
@@ -246,27 +207,18 @@ def ask_endpoint(query: Query):
     Returns JSON: { "answer": "..." }  (always a string)
     """
     try:
-
         # Retrieve context from ChromaDB
-
-
-        # --- Metadata filtering: try to detect subject/unit/topic from question (simple heuristic) ---
         filters = {}
         q_lower = query.question.lower()
-        # Example: if user asks about dbms or os, filter subject
         for subj in ["dbms", "os", "bda", "ml", "python", "java", "cn", "dsa", "dl", "se", "fsad", "flat", "ethical", "ip", "dwdm", "cd", "cns", "ds", "cc"]:
             if subj in q_lower:
                 filters["subject"] = subj.upper()
-        # Example: if user mentions unit-1, unit 2, etc.
         import re
         unit_match = re.search(r"unit[- ]?(\d+)", q_lower)
         if unit_match:
             filters["unit"] = f"UNIT-{unit_match.group(1)}"
-        # Example: if user mentions a topic (very basic, can be improved)
-        # (You can add more advanced NLP here)
 
         retriever = vectordb.as_retriever()
-        # If filters found, use flat dict of field: {"$eq": value} for ChromaDB compatibility
         if filters:
             where = {k: {"$eq": v} for k, v in filters.items()}
             logger.info(f"Using filters: {where}")
@@ -275,7 +227,6 @@ def ask_endpoint(query: Query):
             logger.info("No filters used.")
             docs = retriever.invoke(query.question)
 
-        # Log number of docs retrieved
         if isinstance(docs, list):
             logger.info(f"Retrieved {len(docs)} docs.")
         else:
@@ -286,14 +237,12 @@ def ask_endpoint(query: Query):
         else:
             context = docs.page_content if hasattr(docs, "page_content") else str(docs)
 
-        # Log the context and metadata for debugging RAG
         logger.info("RAG Context:\n%s", context)
         if isinstance(docs, list):
             for i, doc in enumerate(docs):
                 logger.info(f"Doc {i} metadata: {getattr(doc, 'metadata', {})}")
         else:
             logger.info(f"Doc metadata: {getattr(docs, 'metadata', {})}")
-
 
         # Compose prompt and handle fallback if context is empty
         if context.strip():
@@ -343,38 +292,8 @@ def ask_options():
     # allow preflight to succeed quickly
     return JSONResponse(content={"ok": True})
 
-
-@app.post("/ask")
-def ask_endpoint(query: Query):
-    try:
-        qa_instance = get_qa()
-        # Try common invocation patterns
-        try:
-            result = qa_instance.invoke({"query": query.question})
-        except TypeError:
-            try:
-                result = qa_instance.invoke(query.question)
-            except Exception:
-                result = qa_instance.run(query.question)
-        except Exception:
-            result = qa_instance.run(query.question)
-
-        result_text = coerce_result_to_text(result)
-        result_text = collapse_blank_lines(result_text)
-        result_text = result_text.encode("utf-8", errors="replace").decode("utf-8")
-
-        return JSONResponse(content={"answer": result_text})
-    except Exception as e:
-        # log full traceback server-side
-        logger.exception("Error in /ask endpoint")
-        # return a friendly error message (keeps axios from throwing)
-        return JSONResponse(content={"answer": f"Error: {str(e)}"})
-
-
 # -------------- Start uvicorn when running directly --------------
 if __name__ == "__main__":
     import uvicorn
-
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run("app:app", host="0.0.0.0", port=port)
-
